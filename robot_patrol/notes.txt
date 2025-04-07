@@ -1,0 +1,12 @@
+RUN SIMULATOR
+-------------
+source ~/simulation_ws/install/setup.bash
+ros2 launch turtlebot3_gazebo main_turtlebot3_lab.launch.xml
+
+KEYBOARD TELEOPERATION
+----------------------
+ros2 run teleop_twist_keyboard teleop_twist_keyboard
+
+RUN SCRIPT
+----------
+ros2 run robot_patrol patrol_node

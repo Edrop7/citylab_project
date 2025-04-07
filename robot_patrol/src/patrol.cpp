@@ -2,6 +2,7 @@
 #include "sensor_msgs/msg/laser_scan.hpp"
 #include "geometry_msgs/msg/twist.hpp"
 #include <vector>
+#include <map>
 
 // 2. CREATE A C++ CLASS
 class Patrol : public rclcpp::Node
@@ -44,8 +45,6 @@ private:
 
         this->laser_reading_map["front"] = msg->ranges[359];
 
-        RCLCPP_INFO(this->get_logger(), "front distance: %.2f", this->laser_reading_map["front"]);
-
         stateflow_navigator(this->laser_reading_map, this->front_laser_scan);
         publish_velocities();
     }
@@ -61,9 +60,14 @@ private:
         if (laser_reading_map.at("front") > 0.35)
         {
             this->angular_z_vel_ = 0.0;
+            RCLCPP_INFO(this->get_logger(), "No frontal obstacle, cm to next obstacle: %f",
+                                            laser_reading_map.at("front"));
         }
         else if (laser_reading_map.at("front") < 0.35)
         {
+            RCLCPP_INFO(this->get_logger(), "OBSTACLE DETECTED WITHIN: %f",
+                                            laser_reading_map.at("front"));
+
             // 5. DETERMINE WHICH RAY IN FRONTAL 180 IS THE LARGEST BUT NOT INFINITE
             for (int index = 0; index < 360; index++) {
                 distance_of_index = front_laser_scan[index];
@@ -76,7 +80,7 @@ private:
             this->laser_reading_map["max"] = max_distance; // in case I want to log it
 
             // 4. & 5. DETERMINE WHAT IS THE SAFEST DIRECTION GIVEN THE MAX INDEX (radians)
-            this->direction_ = -(3.141592/2) + (max_index * (3.141592/180)); 
+            this->direction_ = -(3.141592/2) + (max_index * (3.141592/180));
 
             // 5. ANGULAR VELOCITY = DIRECTION (radians) / 2 (rad/s)
             this->angular_z_vel_ = this->direction_ / 2;

@@ -10,3 +10,19 @@ ros2 run teleop_twist_keyboard teleop_twist_keyboard
 RUN SCRIPT
 ----------
 ros2 run robot_patrol patrol_node
+
+SCORING (simulation)
+--------------------
+2pt: Git Repo with at least 5 commits at different times and days with meaningful commit description
+2pt: Subscriber Callback and Publisher Callback implemented separately
+2pt: The robot starts moving around the environment and successfully avoids obstacles and walls
+2pt: The robot is able to successfully complete one clockwise and one counter clockwise lap
+2pt: You can visualize the robot environment with the properties provided in the configuration file
+
+Scoring (real robot lab)
+------------------------
+2pt: Git repo with real-robot branch containing current code
+2pt: the subscriber and publisher callbacks are implemented separately
+2pt: The robot starts moving around the environment and successfully avoids obstacles and walls
+2pt: The robot is able to successfully complete one clockwise and one counter clockwise lap
+2pt: You can visualize the robot environment with the properties provided in the configuration file

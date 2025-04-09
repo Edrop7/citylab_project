@@ -53,8 +53,8 @@ private:
     float angular_z_vel_ = 0.0;
 
     float direction_ = 0.0;
-    float min_frontal_distance_allowed_ = 0.35; // in m, 35 cm
-    float min_diagonal_distance_allowed_ = 0.24; // in m
+    float min_frontal_distance_allowed_ = 1.0; // in m, 70 cm
+    float min_diagonal_distance_allowed_ = 0.27; // in m, 23 cm
 
     void callback_laser(const sensor_msgs::msg::LaserScan::SharedPtr msg)
     {
@@ -80,6 +80,12 @@ private:
                 this->angular_z_vel_ = 3.141592 / 4;
                 RCLCPP_INFO(this->get_logger(), "ADJUSTMENT FOR FRONT-RIGHT OBSTACLE WITHIN: %f",
                                             front_laser_scan[89]);
+            }
+            else if(front_laser_scan[269] < this->min_diagonal_distance_allowed_)
+            {
+                this->angular_z_vel_ = -3.141592 / 4;
+                RCLCPP_INFO(this->get_logger(), "ADJUSTMENT FOR FRONT-RIGHT OBSTACLE WITHIN: %f",
+                                            front_laser_scan[89]);
             } 
             else 
             {
@@ -103,7 +109,15 @@ private:
             this->direction_ = (-3.141592/2) + ((max_index+1) * (3.141592/360));
 
             // 5. ANGULAR VELOCITY = DIRECTION (radians) / 2 (rad/s)
-            this->angular_z_vel_ = this->direction_ / 2;
+            // this->angular_z_vel_ = this->direction_ / 2;
+            if (this->direction_ < 0.0) 
+            {
+                this->angular_z_vel_ = -3.141592 / 4;
+            }
+            else 
+            {
+                this->angular_z_vel_ = 3.141592 / 4;
+            }
             
             RCLCPP_INFO(this->get_logger(), "OBSTACLE DETECTED WITHIN: %f cm;   VELOCITY SENT: %f rad/s",
                                             front_laser_scan[179],

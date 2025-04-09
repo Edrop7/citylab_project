@@ -4,7 +4,7 @@
 #include <vector>
 #include <map>
 
-// 2. CREATE A C++ CLASS
+// 2. CREATE A C++ CLASS NAMED Patrol
 class Patrol : public rclcpp::Node
 {
 public:
@@ -14,17 +14,16 @@ public:
         sub_ = this->create_subscription<sensor_msgs::msg::LaserScan>
             (
             "/scan", 
-            10,
+            5,
             std::bind(&Patrol::callback_laser, this, std::placeholders::_1)
             );
 
+        // 6. CREATE A CONTROL LOOP OF 10 HZ
         pub_ = this->create_publisher<geometry_msgs::msg::Twist>
             (
             "/cmd_vel", 
-            10
+            5
             );
-
-        // 6. CREATE A CONTROL LOOP OF 10 HZ
         timer_ = this->create_wall_timer(
             std::chrono::milliseconds(100),  // 10 Hz -> run every 100 ms (10 times a second)
             std::bind(&Patrol::callback_velocity, this) // callback for publisher separated
@@ -37,39 +36,47 @@ private:
     rclcpp::TimerBase::SharedPtr timer_;
 
     std::vector<float> front_laser_scan;
-    std::map<std::string, float> laser_reading_map;
 
     float linear_x_vel_ = 0.1; // THE LINEAR VELOCITY IS ALWAYS 0.1 m/s 
     float angular_z_vel_ = 0.0;
 
     float direction_ = 0.0;
-    float min_distance_allowed_ = 0.35; //in m
+    float min_frontal_distance_allowed_ = 0.35; // in m, 35 cm
+    float min_diagonal_distance_allowed_ = 0.24; // in m
 
     void callback_laser(const sensor_msgs::msg::LaserScan::SharedPtr msg)
     {
         // 4. GET THE RAYS CORRESPONDING TO THE FRONTAL 180 DEGREES
         this->front_laser_scan = std::vector<float>(msg->ranges.begin() + 179, msg->ranges.begin() + 540);
 
-        this->laser_reading_map["front"] = msg->ranges[359];
-
-        stateflow_navigator(this->laser_reading_map, this->front_laser_scan);
+        stateflow_navigator(this->front_laser_scan);
     }
 
     // 5. ALGORITHM TO IMPLEMENT
-    void stateflow_navigator(const std::map<std::string, float> &laser_reading_map, std::vector<float> &front_laser_scan)
+    void stateflow_navigator(std::vector<float> &front_laser_scan)
     {
         float max_distance = 0.0;
         float distance_of_index = 0.0;
         int max_index = 0;
 
         // 5. MOVE THE ROBOT FORWARD UNTIL AN OBSTACLE IN FRONT OF ROBOT IS CLOSER THAN 35 CM
-        if (laser_reading_map.at("front") > this->min_distance_allowed_)
+        if (front_laser_scan[179] > this->min_frontal_distance_allowed_)
         {
-            this->angular_z_vel_ = 0.0;
-            RCLCPP_INFO(this->get_logger(), "No frontal obstacle, cm to next obstacle: %f",
-                                            laser_reading_map.at("front"));
+            // front-right check to fix bug with counter-clockwise lap
+            if(front_laser_scan[89] < this->min_diagonal_distance_allowed_)
+            {
+                this->angular_z_vel_ = 3.141592 / 4;
+                RCLCPP_INFO(this->get_logger(), "ADJUSTMENT FOR FRONT-RIGHT OBSTACLE WITHIN: %f",
+                                            front_laser_scan[89]);
+            } 
+            else 
+            {
+                this->angular_z_vel_ = 0.0;
+                RCLCPP_INFO(this->get_logger(), "No frontal obstacle, cm to next obstacle: %f",
+                                            front_laser_scan[179]);
+            }
         }
-        else if (laser_reading_map.at("front") < this->min_distance_allowed_)
+        else if (front_laser_scan[179] < this->min_frontal_distance_allowed_)
         {
             // 5. DETERMINE WHICH RAY IN FRONTAL 180 IS THE LARGEST BUT NOT INFINITE
             for (int index = 0; index < 360; index++) {
@@ -80,21 +87,19 @@ private:
                 }
             }
 
-            this->laser_reading_map["max"] = max_distance; // in case I want to log it
-
             // 4. & 5. DETERMINE WHAT IS THE SAFEST DIRECTION GIVEN THE MAX INDEX (radians)
-            this->direction_ = (-3.141592/2) + (max_index * (3.141592/180));
+            this->direction_ = (-3.141592/2) + ((max_index+1) * (3.141592/360));
 
             // 5. ANGULAR VELOCITY = DIRECTION (radians) / 2 (rad/s)
             this->angular_z_vel_ = this->direction_ / 2;
-
+            
             RCLCPP_INFO(this->get_logger(), "OBSTACLE DETECTED WITHIN: %f cm;   VELOCITY SENT: %f rad/s",
-                                            laser_reading_map.at("front"),
+                                            front_laser_scan[179],
                                             this->angular_z_vel_);
         }
     }
 
-    // 6. CREATE A CONTROL LOOP OF 10 HZ
+    // 6. CREATE A CONTROL LOOP OF 10 HZ (see constructor)
     void callback_velocity()
     {
         auto msg = geometry_msgs::msg::Twist();

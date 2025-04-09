@@ -10,13 +10,21 @@ class Patrol : public rclcpp::Node
 public:
     Patrol() : Node("patrol_node") // CONSTRUCTOR
     {
+        // separate publisher and subscriber into threads using callback groups and executors
+        cb_group_sub_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+        cb_group_pub_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+
         // 3. GET THE LASER DATA
+        rclcpp::SubscriptionOptions sub_options;
+        sub_options.callback_group = cb_group_sub_;
         sub_ = this->create_subscription<sensor_msgs::msg::LaserScan>
             (
             "/scan", 
             5,
-            std::bind(&Patrol::callback_laser, this, std::placeholders::_1)
+            std::bind(&Patrol::callback_laser, this, std::placeholders::_1),
+            sub_options
             );
+
 
         // 6. CREATE A CONTROL LOOP OF 10 HZ
         pub_ = this->create_publisher<geometry_msgs::msg::Twist>
@@ -26,7 +34,8 @@ public:
             );
         timer_ = this->create_wall_timer(
             std::chrono::milliseconds(100),  // 10 Hz -> run every 100 ms (10 times a second)
-            std::bind(&Patrol::callback_velocity, this) // callback for publisher separated
+            std::bind(&Patrol::callback_velocity, this), // callback for publisher separated
+            cb_group_pub_
         );
     }
 
@@ -34,6 +43,9 @@ private:
     rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr pub_;
     rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr sub_;
     rclcpp::TimerBase::SharedPtr timer_;
+
+    rclcpp::CallbackGroup::SharedPtr cb_group_sub_;
+    rclcpp::CallbackGroup::SharedPtr cb_group_pub_;
 
     std::vector<float> front_laser_scan;
 
@@ -113,7 +125,12 @@ int main(int argc, char *argv[])
 {
     rclcpp::init(argc, argv);
     auto node = std::make_shared<Patrol>();
-    rclcpp::spin(node);
+
+    // Concurrency with Mutually Exclusive MultiThreadedExecutor
+    rclcpp::executors::MultiThreadedExecutor executor;
+    executor.add_node(node);
+    executor.spin();
+
     rclcpp::shutdown();
     return 0;
 }

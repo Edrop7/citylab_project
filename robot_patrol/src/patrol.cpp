@@ -53,8 +53,8 @@ private:
     float angular_z_vel_ = 0.0;
 
     float direction_ = 0.0;
-    float min_frontal_distance_allowed_ = 1.0; // in m, 70 cm
-    float min_diagonal_distance_allowed_ = 0.27; // in m, 23 cm
+    float min_frontal_distance_allowed_ = 0.4; // in m, 40 cm
+    float min_diagonal_distance_allowed_ = 0.2; // in m, 20 cm
 
     void callback_laser(const sensor_msgs::msg::LaserScan::SharedPtr msg)
     {
@@ -77,13 +77,13 @@ private:
             // front-right check to fix bug with counter-clockwise lap
             if(front_laser_scan[89] < this->min_diagonal_distance_allowed_)
             {
-                this->angular_z_vel_ = 3.141592 / 4;
+                this->angular_z_vel_ = 3.141592 / 8;
                 RCLCPP_INFO(this->get_logger(), "ADJUSTMENT FOR FRONT-RIGHT OBSTACLE WITHIN: %f",
                                             front_laser_scan[89]);
             }
             else if(front_laser_scan[269] < this->min_diagonal_distance_allowed_)
             {
-                this->angular_z_vel_ = -3.141592 / 4;
+                this->angular_z_vel_ = -3.141592 / 8;
                 RCLCPP_INFO(this->get_logger(), "ADJUSTMENT FOR FRONT-RIGHT OBSTACLE WITHIN: %f",
                                             front_laser_scan[89]);
             } 

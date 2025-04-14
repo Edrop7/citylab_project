@@ -46,7 +46,7 @@ private:
         right_laser_scan = std::vector<float>(request->laser_data.ranges.begin() + 179, request->laser_data.ranges.begin() + 300);
         left_laser_scan = std::vector<float>(request->laser_data.ranges.begin() + 419, request->laser_data.ranges.begin() + 540);
         // front scan is a different range to modify turning precision (maybe the lidar readings arent ideally split?)
-        front_laser_scan = std::vector<float>(request->laser_data.ranges.begin() + 289, request->laser_data.ranges.begin() + 390);
+        front_laser_scan = std::vector<float>(request->laser_data.ranges.begin() + 334, request->laser_data.ranges.begin() + 420);
 
         // 3. FIND THE SUM OF EACH DIRECTION
         float left_sum = 0.0;

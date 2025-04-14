@@ -13,11 +13,21 @@ class Patrol : public rclcpp::Node
 public:
     Patrol() : Node("patrol_node") // CONSTRUCTOR
     {
+        // separate publisher and subscriber into threads using callback groups and executors
+        cb_group_sub_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+        cb_group_pub_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+
         client_ = this->create_client<GetDirection>("direction_service");
 
-        laser_sub_ = this->create_subscription<sensor_msgs::msg::LaserScan>(
-            "/scan", 10, std::bind(&Patrol::laser_callback, this, _1));
-
+        rclcpp::SubscriptionOptions sub_options;
+        sub_options.callback_group = cb_group_sub_;
+        laser_sub_ = this->create_subscription<sensor_msgs::msg::LaserScan>
+            (
+            "/scan", 
+            10, 
+            std::bind(&Patrol::laser_callback, this, _1),
+            sub_options
+            );
         RCLCPP_INFO(this->get_logger(), "PATROL CLIENT /direction_service READY");
 
         pub_ = this->create_publisher<geometry_msgs::msg::Twist>
@@ -25,10 +35,12 @@ public:
             "/cmd_vel", 
             5
             );
-
-        // 10 Hz cycle for determining direction and publishing
-        timer_ = this->create_wall_timer(
-            100ms, std::bind(&Patrol::timer_callback, this));
+        timer_ = this->create_wall_timer
+            (
+            100ms, 
+            std::bind(&Patrol::timer_callback, this),
+            cb_group_pub_
+            );
     }
 
 private:
@@ -36,6 +48,9 @@ private:
     rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr laser_sub_;
     rclcpp::TimerBase::SharedPtr timer_;
     rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr pub_;
+
+    rclcpp::CallbackGroup::SharedPtr cb_group_sub_;
+    rclcpp::CallbackGroup::SharedPtr cb_group_pub_;
 
     sensor_msgs::msg::LaserScan::SharedPtr laser_reading_stored_;
 
@@ -113,6 +128,11 @@ private:
 int main(int argc, char **argv)
 {
     rclcpp::init(argc, argv);
-    rclcpp::spin(std::make_shared<Patrol>());
+    auto node = std::make_shared<Patrol>();
+    // Concurrency with Mutually Exclusive MultiThreadedExecutor
+    rclcpp::executors::MultiThreadedExecutor executor;
+    executor.add_node(node);
+    executor.spin();
+
     return 0;
 } // MAIN

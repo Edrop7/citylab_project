@@ -85,21 +85,24 @@ private:
         }
     
         // DETERMINE DIRECTION BASED ON BIGGEST SUM (RIGHT, FRONT, OR LEFT)
-        if ((left_sum > front_sum) && (left_sum > right_sum))
-        {
-            response->direction = "left";
-        }
-        else if ((right_sum > front_sum) && (right_sum > left_sum))
-        {
-            response->direction = "right";
-        }
-        else if ((front_sum > left_sum) && (front_sum > right_sum))
+        if ((front_sum / 120) > 0.35)  // average front distance must be below 35 cm to turn
         {
             response->direction = "forward";
         }
-        else
+        else 
         {
-            response->direction = "error";
+            if ((left_sum > front_sum) && (left_sum > right_sum))
+            {
+                response->direction = "left";
+            }
+            else if ((right_sum > front_sum) && (right_sum > left_sum))
+            {
+                response->direction = "right";
+            }
+            else
+            {
+                response->direction = "error";
+            }
         }
 
         RCLCPP_INFO(this->get_logger(), "SERVICE /direction_service COMPLETED");

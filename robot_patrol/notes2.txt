@@ -1,0 +1,71 @@
+PART 1:
+Goal:
+-----
+Service Node that analyzes laser data and directs robot
+Modification of patrol.cpp (must call service now to run)
+launch file that starts service and client
+
+/direction_service server and DirectionService class
+launch server in main 
+
+stateflow
+---------
+collect the left side, front side, and right side distance sums
+whichever has the largest sum is the best direction to turn to
+    responses
+        forward
+        left
+        right
+
+move forward if front range is above 35 cm
+
+custom interface
+----------------
+GetDirection
+request    sensor_msgs/laserscan laser_data
+response   string direction
+
+
+test script
+-----------
+test_service.cpp
+    subscribes to the laser data
+    callback to /direction_service
+    prints th response
+
+Launch files
+------------
+start_test_service.launch.py -> test_service.cpp (use teleop_twist_keyboard)
+start_direction_service.launch.py -> server for /direction_service
+
+TERMINAL COMMANDS FOR TESTING
+-----------------------------
+ros2 run teleop_twist_keyboard teleop_twist_keyboard
+
+PART 2
+------
+duplicate patrol.cpp -> patrol_with_service.cpp
+    connect it to the direction_service to get the next direction
+    if forward
+        linear.x = 0.1
+        angular.z = 0.0
+    if left
+        linear.x = 0.1
+        angular.z = 0.5
+    if right
+        linear.x = 0.1
+        angular.z = -0.5
+main.launch.py
+    Create a launch file that runs 
+        direction_service.cpp
+        patrol_with_service.cpp
+
+GRADING (x/5 for part 1)
+------------------------
+0.5 pts: multiple commits at different times
+1.0 pts: service works with start_direction_service.launch.py and start_test_service.launch.py
+0.5 pts: service server displays SERVER READY, REQUESTED, COMPLETED log messages
+0.5 pts: service test client displays CLIENT READY, REQUEST, RESPONSE log messages
+0.5 pts: RVIZ with prior configuration launched with main.launch.py
+1.0 pts: The robot moves around the city enviornment while avoiding obstacles using /direction_service
+1.0 pts: The robot completes one full clockwise and one full counterclockwise lap around the environment

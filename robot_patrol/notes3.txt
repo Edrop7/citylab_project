@@ -1,0 +1,38 @@
+Action server purpose
+---------------------
+provide goal coordinate (x, y, theta)
+navigate robot to goal coordinate
+
+Structure
+---------
+robot_patrol/src/go_to_pose_action.cpp
+    GoToPose class
+    /go_to_pose ACTION SERVER
+        callback
+            desired position variable Pose2D desired_pos_
+    /odom SUBSCRIBER
+        callback
+            current position variable Pose2D current_pos_
+    /cmd_vel PUBLISHER
+        ran at every step of a control loop
+    CONTROL LOOP   
+        a.) compute difference between current vs desired position
+        b.) determine angular.z required using vector with same idea as Section 1
+                angular_z_vel_ = direction_ / 2
+                **need a way to convert vector to an indexed direction in radians
+        c.) publish /cmd_vel where linear.x is ALWAYS 0.2 m/s
+GoToPose.action interface
+    GOAL - 2D position
+    FEEDBACK - current_pos
+    RESULT - bool (complete?)
+Launch file: start_gotopose_action.launch.py
+
+GRADING (x/5 for part 1)
+------------------------
+1.00 pts: custom action interface created successfully
+0.50 pts: launch file runs the RVIZ configuration file
+0.75 pts: action server starts and receives goals successfully
+0.50 pts: display ACTION SERVER READY, ACTION CALLED, ACTION COMPLETED messages
+0.75 pts: the robot reaches a goal pose successfully
+1.00 pts: handle multiple consecutive goal calls
+0.50 pts: the robot reaches multiple goal poses with little error

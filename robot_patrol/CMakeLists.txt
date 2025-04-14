@@ -10,9 +10,11 @@ endif()
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(action_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(custom_interfaces REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
 
 
 if(BUILD_TESTING)
@@ -26,6 +28,11 @@ if(BUILD_TESTING)
   set(ament_cmake_cpplint_FOUND TRUE)
   ament_lint_auto_find_test_dependencies()
 endif()
+
+rosidl_generate_interfaces(${PROJECT_NAME}
+  "action/GoToPose.action"
+  DEPENDENCIES geometry_msgs
+)
 
 add_executable(patrol_node src/patrol.cpp)
 add_executable(direction_service_node src/direction_service.cpp)
@@ -73,5 +80,6 @@ install(DIRECTORY
   rviz/
   DESTINATION share/${PROJECT_NAME}/rviz
 )
+
 
 ament_package()

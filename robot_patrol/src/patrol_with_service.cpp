@@ -81,13 +81,13 @@ private:
     {
         if (direction_response == "right")
         {
-            this->linear_x_vel_ = 0.1;
-            this->angular_z_vel_ = -1.571;
+            this->linear_x_vel_ = 0.05;
+            this->angular_z_vel_ = -0.5;
         }
         else if (direction_response == "left")
         {
-            this->linear_x_vel_ = 0.1;
-            this->angular_z_vel_ = 1.571;
+            this->linear_x_vel_ = 0.05;
+            this->angular_z_vel_ = 0.5;
         }
         else if (direction_response == "forward")
         {

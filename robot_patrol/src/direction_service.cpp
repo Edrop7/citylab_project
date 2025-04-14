@@ -3,6 +3,7 @@
 #include "sensor_msgs/msg/laser_scan.hpp"
 #include <vector>
 #include <memory>
+#include <algorithm>
 
 using GetDirection = custom_interfaces::srv::GetDirection;
 using std::placeholders::_1;
@@ -40,15 +41,14 @@ private:
         std::vector<float> front_laser_scan;
         std::vector<float> right_laser_scan;
         right_laser_scan = std::vector<float>(request->laser_data.ranges.begin() + 179, request->laser_data.ranges.begin() + 300);
-        front_laser_scan = std::vector<float>(request->laser_data.ranges.begin() + 299, request->laser_data.ranges.begin() + 420);
         left_laser_scan = std::vector<float>(request->laser_data.ranges.begin() + 419, request->laser_data.ranges.begin() + 540);
+        // front scan is a different range to modify turning precision (maybe the lidar readings arent ideally split?)
+        front_laser_scan = std::vector<float>(request->laser_data.ranges.begin() + 289, request->laser_data.ranges.begin() + 390);
 
-        // FIND THE SUM OF EACH SECTION
+        // FIND THE SUM OF EACH DIRECTION
         float left_sum = 0.0;
-        float front_sum = 0.0;
         float right_sum = 0.0;
         float left_reading = 0.0;
-        float front_reading = 0.0;
         float right_reading = 0.0;
         for (int i = 0; i < 120; i++)
         {
@@ -68,11 +68,6 @@ private:
             } else {
                 left_reading = 3.5;
             }
-            if(std::isfinite(front_laser_scan[i])) {
-                front_reading = front_laser_scan[i];
-            } else {
-                front_reading = 3.5;
-            }
             if(std::isfinite(right_laser_scan[i])) {
                 right_reading = right_laser_scan[i];
             } else {
@@ -80,22 +75,22 @@ private:
             }
 
             left_sum += left_reading;
-            front_sum += front_reading;
             right_sum += right_reading;
         }
-    
-        // DETERMINE DIRECTION BASED ON BIGGEST SUM (RIGHT, FRONT, OR LEFT)
-        if ((front_sum / 120) > 0.50)  // average front distance must be below 50 cm to turn
+
+        // DETERMINE DIRECTION
+        float min_front_value = *std::min_element(front_laser_scan.begin(), front_laser_scan.end());
+        if (min_front_value > 0.35) // minimum front distance must be above 35 cm to not turn
         {
             response->direction = "forward";
         }
         else 
         {
-            if ((left_sum > front_sum) && (left_sum > right_sum))
+            if (left_sum > right_sum)
             {
                 response->direction = "left";
             }
-            else if ((right_sum > front_sum) && (right_sum > left_sum))
+            else if (right_sum > left_sum)
             {
                 response->direction = "right";
             }

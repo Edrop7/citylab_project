@@ -85,7 +85,7 @@ private:
         }
     
         // DETERMINE DIRECTION BASED ON BIGGEST SUM (RIGHT, FRONT, OR LEFT)
-        if ((front_sum / 120) > 0.35)  // average front distance must be below 35 cm to turn
+        if ((front_sum / 120) > 0.50)  // average front distance must be below 50 cm to turn
         {
             response->direction = "forward";
         }

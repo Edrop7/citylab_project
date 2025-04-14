@@ -95,7 +95,7 @@ private:
         }
         else if ((front_sum > left_sum) && (front_sum > right_sum))
         {
-            response->direction = "front";
+            response->direction = "forward";
         }
         else
         {

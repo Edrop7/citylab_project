@@ -112,9 +112,14 @@ private:
 
         rclcpp::Rate loop_rate(10); // 10 Hz
 
-        this->dtheta = normalize_angle(this->goal_theta - this->current_theta);
+        
+        this->dx = this->goal_x - this->current_x;
+        this->dy = this->goal_y - this->current_y;
+        this->angle_from_front = atan2(this->dy, this->dx);
+        this->dtheta = normalize_angle(this->angle_from_front - this->current_theta);
         double angle_error = fabs(this->dtheta);
-        while(angle_error > 0.1)
+        RCLCPP_INFO(this->get_logger(), "Initial Turn");
+        while(angle_error > 0.025)
         {
             if (goal_handle->is_canceling())
             {
@@ -126,18 +131,22 @@ private:
 
             if(this->dtheta > 0.0)
             {
-                this->angular_z_vel = 0.1;
+                this->angular_z_vel = 0.5;
             }
             else
             {
-                this->angular_z_vel = -0.1;
+                this->angular_z_vel = -0.5;
             }
-            this->dtheta = normalize_angle(this->goal_theta - this->current_theta);
+            this->dtheta = normalize_angle(this->angle_from_front - this->current_theta);
             angle_error = fabs(this->dtheta);
             loop_rate.sleep();
         }
         this->angular_z_vel = 0.0;
+        this->linear_x_vel = 0.0;
+        RCLCPP_INFO(this->get_logger(), "Initial Turn Complete");
+        loop_rate.sleep();
         
+        RCLCPP_INFO(this->get_logger(), "Navigation");
         while(!this->target_achieved)
         {
             if (goal_handle->is_canceling())
@@ -152,7 +161,6 @@ private:
             this->dy = this->goal_y - this->current_y;
 
             this->linear_x_vel = 0.2;
-            // this->angle_from_front = (3.1415926535 / 2) - atan2(this->dy, this->dx);
             this->angle_from_front = atan2(this->dy, this->dx);
             this->angular_z_vel = this->angle_from_front / 2; // From section 1: angular_z_vel_ = direction_ / 2
             
@@ -162,7 +170,7 @@ private:
             goal_handle->publish_feedback(feedback);
 
             double distance_error = sqrt(this->dx * this->dx + this->dy * this->dy);
-            if (distance_error < 0.1)
+            if (distance_error < 0.2)
             {
                 this->target_achieved = true;
             }
@@ -170,6 +178,38 @@ private:
         }
         this->angular_z_vel = 0.0;
         this->linear_x_vel = 0.0;
+        RCLCPP_INFO(this->get_logger(), "Navigation Complete");
+        loop_rate.sleep();
+
+        this->dtheta = normalize_angle(this->goal_theta - this->current_theta);
+        angle_error = fabs(this->dtheta);
+        RCLCPP_INFO(this->get_logger(), "Final Turn");
+        while(angle_error > 0.025)
+        {
+            if (goal_handle->is_canceling())
+            {
+                result->status = false;
+                goal_handle->canceled(result);
+                RCLCPP_INFO(this->get_logger(), "ACTION SERVER CANCELLING GOAL");
+                return;
+            }
+
+            if(this->dtheta > 0.0)
+            {
+                this->angular_z_vel = 0.5;
+            }
+            else
+            {
+                this->angular_z_vel = -0.5;
+            }
+            this->dtheta = normalize_angle(this->goal_theta - this->current_theta);
+            angle_error = fabs(this->dtheta);
+            loop_rate.sleep();
+        }
+        this->angular_z_vel = 0.0;
+        this->linear_x_vel = 0.0;
+        RCLCPP_INFO(this->get_logger(), "Final Turn Complete");
+        loop_rate.sleep();
 
         result->status = true;
         goal_handle->succeed(result);
@@ -203,7 +243,8 @@ private:
     }
 
     // Fixing a bug with a common script
-    double normalize_angle(double angle) {
+    double normalize_angle(double angle) 
+    {
         while (angle > M_PI) angle -= 2.0 * M_PI;
         while (angle < -M_PI) angle += 2.0 * M_PI;
         return angle;

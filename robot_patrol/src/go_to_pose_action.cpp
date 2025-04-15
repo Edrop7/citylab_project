@@ -211,7 +211,7 @@ private:
     {
         float distance_error = 1.0;
         RCLCPP_INFO(this->get_logger(), "Navigation");
-        while(distance_error > 0.2)
+        while(distance_error > 0.4)
         {
             if (goal_handle->is_canceling())
             {
@@ -225,7 +225,7 @@ private:
             this->delta_pos_.x = this->desired_pos_.x - this->current_pos_.x;
             this->delta_pos_.y = this->desired_pos_.y - this->current_pos_.y;
 
-            this->linear_x_vel = 0.2; // fixed linear speed of 0.2
+            this->linear_x_vel = 0.1; // fixed linear speed of 0.2
             this->front_theta = atan2(this->delta_pos_.y, this->delta_pos_.x);
             this->angular_z_vel = this->front_theta / 2; // From section 1: angular_z_vel_ = direction_ / 2
             

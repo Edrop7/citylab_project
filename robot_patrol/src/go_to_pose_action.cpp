@@ -78,7 +78,7 @@ private:
         (void)uuid;
         this->goal_x = goal->goal_pos.x;
         this->goal_y = goal->goal_pos.y;
-        this->goal_theta = goal->goal_pos.theta;
+        this->goal_theta = degrees_to_radians(goal->goal_pos.theta);
         return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
     }
 
@@ -87,6 +87,9 @@ private:
         RCLCPP_INFO(this->get_logger(), "ACTION SERVER GOAL CANCELLED");
         (void)goal_handle;
         return rclcpp_action::CancelResponse::ACCEPT;
+
+        this->angular_z_vel = 0.0;
+        this->linear_x_vel = 0.0;
     }
 
     void handle_accepted(const std::shared_ptr<GoalHandleMove> goal_handle)
@@ -107,13 +110,13 @@ private:
         this->dx = this->goal_x - this->current_x;
         this->dy = this->goal_y - this->current_y;
         this->front_theta = atan2(this->dy, this->dx);
-        perform_rotation(goal_handle, loop_rate, this->front_theta, result);
+        perform_rotation(goal_handle, loop_rate, this->front_theta, feedback, result);
         if (goal_handle->is_canceling()) return;
 
         perform_navigation(goal_handle, loop_rate, feedback, result);
         if (goal_handle->is_canceling()) return;
 
-        perform_rotation(goal_handle, loop_rate, this->goal_theta, result);
+        perform_rotation(goal_handle, loop_rate, this->goal_theta, feedback, result);
         if (goal_handle->is_canceling()) return;
 
         result->status = true;
@@ -147,16 +150,10 @@ private:
         this->publisher_->publish(msg);
     }
 
-    float normalize_angle(float angle) 
-    {
-        while (angle > M_PI) angle -= 2.0 * M_PI;
-        while (angle < -M_PI) angle += 2.0 * M_PI;
-        return angle;
-    }
-
     void perform_rotation(const std::shared_ptr<GoalHandleMove>& goal_handle, 
                         rclcpp::Rate& loop_rate, 
                         float target_theta,
+                        const std::shared_ptr<GoToPoseAction::Feedback>& feedback,
                         const std::shared_ptr<GoToPoseAction::Result>& result)
     {
         this->dtheta = normalize_angle(target_theta - this->current_theta);
@@ -174,14 +171,20 @@ private:
 
             if(this->dtheta > 0.0)
             {
-                this->angular_z_vel = 0.5;
+                this->angular_z_vel = 0.25;
             }
             else
             {
-                this->angular_z_vel = -0.5;
+                this->angular_z_vel = -0.25;
             }
             this->dtheta = normalize_angle(target_theta - this->current_theta);
             angle_error = fabs(this->dtheta);
+
+            feedback->current_pos.x = current_x;
+            feedback->current_pos.y = current_y;
+            feedback->current_pos.theta = current_theta;
+            goal_handle->publish_feedback(feedback);
+
             loop_rate.sleep();
         }
         this->angular_z_vel = 0.0;
@@ -226,6 +229,17 @@ private:
         this->linear_x_vel = 0.0;
         RCLCPP_INFO(this->get_logger(), "Navigation Complete");
         loop_rate.sleep();
+    }
+
+    float normalize_angle(float angle) 
+    {
+        while (angle > M_PI) angle -= 2.0 * M_PI;
+        while (angle < -M_PI) angle += 2.0 * M_PI;
+        return angle;
+    }
+
+    double degrees_to_radians(double theta_degrees) {
+        return theta_degrees * (M_PI / 180.0);
     }
 }; // CLASS GoToPose
 

@@ -1,3 +1,4 @@
+// 1. Create a duplicate of patrol.cpp with new name
 #include "rclcpp/rclcpp.hpp"
 #include "custom_interfaces/srv/get_direction.hpp"
 #include "sensor_msgs/msg/laser_scan.hpp"
@@ -17,6 +18,7 @@ public:
         cb_group_sub_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
         cb_group_pub_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
 
+        // 2. add a service client that connects to /direction_service
         client_ = this->create_client<GetDirection>("direction_service");
 
         rclcpp::SubscriptionOptions sub_options;
@@ -62,6 +64,7 @@ private:
         this->laser_reading_stored_ = msg;
     }
 
+    // 3. call the service to get the next direction to move
     void timer_callback()
     {
         while (!client_->wait_for_service(1s)) {
@@ -92,6 +95,7 @@ private:
         });
     }
 
+    // 3. assign speeds to the robot 
     void stateflow_navigator(std::string direction_response)
     {
         if (direction_response == "right")

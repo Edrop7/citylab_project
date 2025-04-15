@@ -1,5 +1,6 @@
+// 1. create the C++ file
 #include "rclcpp/rclcpp.hpp"
-#include "custom_interfaces/srv/get_direction.hpp"
+#include "custom_interfaces/srv/get_direction.hpp" // 6. use a custom interface
 #include "sensor_msgs/msg/laser_scan.hpp"
 #include <vector>
 #include <memory>
@@ -9,11 +10,13 @@ using GetDirection = custom_interfaces::srv::GetDirection;
 using std::placeholders::_1;
 using std::placeholders::_2;
 
+// 2. create a class
 class DirectionService : public rclcpp::Node
 {
 public:
     DirectionService() : Node("server_direction_service_node")
     {
+        // 2. service server named /direction_service
         srv_ = create_service<GetDirection>("direction_service", 
                                             std::bind(&DirectionService::request_callback, 
                                                         this, 
@@ -36,7 +39,7 @@ private:
     {
         RCLCPP_INFO(this->get_logger(), "SERVICE /direction_service REQUESTED");
 
-        // GET THE RAYS CORRESPONDING TO THE THREE SECTIONS (RIGHT, FRONT, LEFT)
+        // 3. GET THE RAYS CORRESPONDING TO THE THREE SECTIONS (RIGHT, FRONT, LEFT)
         std::vector<float> left_laser_scan;
         std::vector<float> front_laser_scan;
         std::vector<float> right_laser_scan;
@@ -45,7 +48,7 @@ private:
         // front scan is a different range to modify turning precision (maybe the lidar readings arent ideally split?)
         front_laser_scan = std::vector<float>(request->laser_data.ranges.begin() + 289, request->laser_data.ranges.begin() + 390);
 
-        // FIND THE SUM OF EACH DIRECTION
+        // 3. FIND THE SUM OF EACH DIRECTION
         float left_sum = 0.0;
         float right_sum = 0.0;
         float left_reading = 0.0;
@@ -78,7 +81,7 @@ private:
             right_sum += right_reading;
         }
 
-        // DETERMINE DIRECTION
+        // 5. DETERMINE DIRECTION
         float min_front_value = *std::min_element(front_laser_scan.begin(), front_laser_scan.end());
         if (min_front_value > 0.35) // minimum front distance must be above 35 cm to not turn
         {

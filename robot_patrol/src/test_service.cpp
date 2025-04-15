@@ -1,3 +1,4 @@
+// 1. create a C++ file to test the service
 #include "rclcpp/rclcpp.hpp"
 #include "custom_interfaces/srv/get_direction.hpp"
 #include "sensor_msgs/msg/laser_scan.hpp"
@@ -7,6 +8,7 @@ using GetDirection = custom_interfaces::srv::GetDirection;
 using namespace std::chrono_literals;
 using std::placeholders::_1;
 
+// 2. create a simple node
 class DirectionClient : public rclcpp::Node
 {
 public:
@@ -14,11 +16,13 @@ public:
     {
         client_ = this->create_client<GetDirection>("direction_service");
 
+        // 2. subscribes to the laser data
         laser_sub_ = this->create_subscription<sensor_msgs::msg::LaserScan>(
             "/scan", 10, std::bind(&DirectionClient::laser_callback, this, _1));
 
         RCLCPP_INFO(this->get_logger(), "CLIENT /direction_service READY");
 
+        // 2. in a callback call /direction_service with thee data
         timer_ = this->create_wall_timer(
             500ms, std::bind(&DirectionClient::timer_callback, this));
     }

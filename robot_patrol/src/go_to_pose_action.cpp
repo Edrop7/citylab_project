@@ -58,24 +58,18 @@ private:
     rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr publisher_;
     rclcpp::TimerBase::SharedPtr timer_;
 
-    bool target_achieved = false;
-
-    double goal_x = 0.0;
-    double goal_y = 0.0;
-    double goal_theta = 0.0;
-
-    double current_x = 0.0;
-    double current_y = 0.0;
+    float goal_x = 0.0;
+    float goal_y = 0.0;
+    float goal_theta = 0.0;
+    float current_x = 0.0;
+    float current_y = 0.0;
     double current_theta = 0.0;
-
-    double dx = 0.0;
-    double dy = 0.0;
-    double dtheta = 0.0;
-
-    double angle_from_front = 0.0;
-
-    double angular_z_vel = 0.0;
-    double linear_x_vel = 0.0;
+    float dx = 0.0;
+    float dy = 0.0;
+    float dtheta = 0.0;
+    float front_theta = 0.0;
+    float angular_z_vel = 0.0;
+    float linear_x_vel = 0.0;
 
     rclcpp_action::GoalResponse handle_goal(const rclcpp_action::GoalUUID & uuid,
                                             std::shared_ptr<const GoToPoseAction::Goal> goal)
@@ -105,111 +99,22 @@ private:
     {
         RCLCPP_INFO(this->get_logger(), "ACTION SERVER RUNNING GOAL");
 
-        this->target_achieved = false;
-        
         auto feedback = std::make_shared<GoToPoseAction::Feedback>();
         auto result = std::make_shared<GoToPoseAction::Result>();
 
-        rclcpp::Rate loop_rate(10); // 10 Hz
+        rclcpp::Rate loop_rate(10);
 
-        
         this->dx = this->goal_x - this->current_x;
         this->dy = this->goal_y - this->current_y;
-        this->angle_from_front = atan2(this->dy, this->dx);
-        this->dtheta = normalize_angle(this->angle_from_front - this->current_theta);
-        double angle_error = fabs(this->dtheta);
-        RCLCPP_INFO(this->get_logger(), "Initial Turn");
-        while(angle_error > 0.025)
-        {
-            if (goal_handle->is_canceling())
-            {
-                result->status = false;
-                goal_handle->canceled(result);
-                RCLCPP_INFO(this->get_logger(), "ACTION SERVER CANCELLING GOAL");
-                return;
-            }
+        this->front_theta = atan2(this->dy, this->dx);
+        perform_rotation(goal_handle, loop_rate, this->front_theta, result);
+        if (goal_handle->is_canceling()) return;
 
-            if(this->dtheta > 0.0)
-            {
-                this->angular_z_vel = 0.5;
-            }
-            else
-            {
-                this->angular_z_vel = -0.5;
-            }
-            this->dtheta = normalize_angle(this->angle_from_front - this->current_theta);
-            angle_error = fabs(this->dtheta);
-            loop_rate.sleep();
-        }
-        this->angular_z_vel = 0.0;
-        this->linear_x_vel = 0.0;
-        RCLCPP_INFO(this->get_logger(), "Initial Turn Complete");
-        loop_rate.sleep();
-        
-        RCLCPP_INFO(this->get_logger(), "Navigation");
-        while(!this->target_achieved)
-        {
-            if (goal_handle->is_canceling())
-            {
-                result->status = false;
-                goal_handle->canceled(result);
-                RCLCPP_INFO(this->get_logger(), "ACTION SERVER CANCELLING GOAL");
-                return;
-            }
+        perform_navigation(goal_handle, loop_rate, feedback, result);
+        if (goal_handle->is_canceling()) return;
 
-            this->dx = this->goal_x - this->current_x;
-            this->dy = this->goal_y - this->current_y;
-
-            this->linear_x_vel = 0.2;
-            this->angle_from_front = atan2(this->dy, this->dx);
-            this->angular_z_vel = this->angle_from_front / 2; // From section 1: angular_z_vel_ = direction_ / 2
-            
-            feedback->current_pos.x = current_x;
-            feedback->current_pos.y = current_y;
-            feedback->current_pos.theta = current_theta;
-            goal_handle->publish_feedback(feedback);
-
-            double distance_error = sqrt(this->dx * this->dx + this->dy * this->dy);
-            if (distance_error < 0.2)
-            {
-                this->target_achieved = true;
-            }
-            loop_rate.sleep();
-        }
-        this->angular_z_vel = 0.0;
-        this->linear_x_vel = 0.0;
-        RCLCPP_INFO(this->get_logger(), "Navigation Complete");
-        loop_rate.sleep();
-
-        this->dtheta = normalize_angle(this->goal_theta - this->current_theta);
-        angle_error = fabs(this->dtheta);
-        RCLCPP_INFO(this->get_logger(), "Final Turn");
-        while(angle_error > 0.025)
-        {
-            if (goal_handle->is_canceling())
-            {
-                result->status = false;
-                goal_handle->canceled(result);
-                RCLCPP_INFO(this->get_logger(), "ACTION SERVER CANCELLING GOAL");
-                return;
-            }
-
-            if(this->dtheta > 0.0)
-            {
-                this->angular_z_vel = 0.5;
-            }
-            else
-            {
-                this->angular_z_vel = -0.5;
-            }
-            this->dtheta = normalize_angle(this->goal_theta - this->current_theta);
-            angle_error = fabs(this->dtheta);
-            loop_rate.sleep();
-        }
-        this->angular_z_vel = 0.0;
-        this->linear_x_vel = 0.0;
-        RCLCPP_INFO(this->get_logger(), "Final Turn Complete");
-        loop_rate.sleep();
+        perform_rotation(goal_handle, loop_rate, this->goal_theta, result);
+        if (goal_handle->is_canceling()) return;
 
         result->status = true;
         goal_handle->succeed(result);
@@ -242,12 +147,85 @@ private:
         this->publisher_->publish(msg);
     }
 
-    // Fixing a bug with a common script
-    double normalize_angle(double angle) 
+    float normalize_angle(float angle) 
     {
         while (angle > M_PI) angle -= 2.0 * M_PI;
         while (angle < -M_PI) angle += 2.0 * M_PI;
         return angle;
+    }
+
+    void perform_rotation(const std::shared_ptr<GoalHandleMove>& goal_handle, 
+                        rclcpp::Rate& loop_rate, 
+                        float target_theta,
+                        const std::shared_ptr<GoToPoseAction::Result>& result)
+    {
+        this->dtheta = normalize_angle(target_theta - this->current_theta);
+        float angle_error = fabs(this->dtheta);
+        RCLCPP_INFO(this->get_logger(), "Starting Turn");
+        while(angle_error > 0.025)
+        {
+            if (goal_handle->is_canceling())
+            {
+                result->status = false;
+                goal_handle->canceled(result);
+                RCLCPP_INFO(this->get_logger(), "ACTION SERVER CANCELLING GOAL");
+                return;
+            }
+
+            if(this->dtheta > 0.0)
+            {
+                this->angular_z_vel = 0.5;
+            }
+            else
+            {
+                this->angular_z_vel = -0.5;
+            }
+            this->dtheta = normalize_angle(target_theta - this->current_theta);
+            angle_error = fabs(this->dtheta);
+            loop_rate.sleep();
+        }
+        this->angular_z_vel = 0.0;
+        this->linear_x_vel = 0.0;
+        RCLCPP_INFO(this->get_logger(), "Turn Complete");
+        loop_rate.sleep();
+    }
+
+    void perform_navigation(const std::shared_ptr<GoalHandleMove>& goal_handle, 
+                        rclcpp::Rate& loop_rate,
+                        const std::shared_ptr<GoToPoseAction::Feedback>& feedback,
+                        const std::shared_ptr<GoToPoseAction::Result>& result)
+    {
+        float distance_error = 1.0;
+        RCLCPP_INFO(this->get_logger(), "Navigation");
+        while(distance_error > 0.2)
+        {
+            if (goal_handle->is_canceling())
+            {
+                result->status = false;
+                goal_handle->canceled(result);
+                RCLCPP_INFO(this->get_logger(), "ACTION SERVER CANCELLING GOAL");
+                return;
+            }
+
+            this->dx = this->goal_x - this->current_x;
+            this->dy = this->goal_y - this->current_y;
+
+            this->linear_x_vel = 0.2;
+            this->front_theta = atan2(this->dy, this->dx);
+            this->angular_z_vel = this->front_theta / 2; // From section 1: angular_z_vel_ = direction_ / 2
+            
+            feedback->current_pos.x = current_x;
+            feedback->current_pos.y = current_y;
+            feedback->current_pos.theta = current_theta;
+            goal_handle->publish_feedback(feedback);
+
+            distance_error = sqrt(this->dx * this->dx + this->dy * this->dy);
+            loop_rate.sleep();
+        }
+        this->angular_z_vel = 0.0;
+        this->linear_x_vel = 0.0;
+        RCLCPP_INFO(this->get_logger(), "Navigation Complete");
+        loop_rate.sleep();
     }
 }; // CLASS GoToPose
 
